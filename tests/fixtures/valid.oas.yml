@@ -1,0 +1,19 @@
+openapi: "3.0.0"
+info:
+  title: Test API
+  version: "1.0.0"
+  description: A simple test API
+paths:
+  /items:
+    get:
+      summary: List items
+      operationId: listItems
+      responses:
+        "200":
+          description: A list of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string

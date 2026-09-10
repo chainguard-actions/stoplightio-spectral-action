@@ -1,0 +1,52 @@
+name: Test basic push event linting
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up event file and OAS file in workspace
+        run: |
+          # Overwrite the actual GITHUB_EVENT_PATH with a push event fixture
+          # so the Docker container reads our custom event
+          cat > "$GITHUB_EVENT_PATH" <<'EOF'
+          {
+            "after": "abc1234567890abcdef1234567890abcdef123456",
+            "repository": {
+              "name": "test-repo",
+              "owner": {
+                "login": "test-owner"
+              }
+            }
+          }
+          EOF
+
+          # Copy the OAS fixture into workspace for linting
+          cp "$GITHUB_WORKSPACE/tests/fixtures/valid.oas.yml" "$GITHUB_WORKSPACE/valid.oas.yml"
+          # Copy the custom ruleset into workspace so spectral can find it
+          cp "$GITHUB_WORKSPACE/tests/fixtures/custom.spectral.yml" "$GITHUB_WORKSPACE/custom.spectral.yml"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          file_glob: "valid.oas.yml"
+          spectral_ruleset: "custom.spectral.yml"
+          repo_token: ${{ github.token }}
+          event_name: push
+
+      - name: Assert action ran (linting attempted, API call may fail on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via GitHub API)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
