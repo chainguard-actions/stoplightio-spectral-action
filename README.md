@@ -1,0 +1,1 @@
+# stoplightio-spectral-action
